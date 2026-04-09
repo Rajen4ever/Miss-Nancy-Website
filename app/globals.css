@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --success: 158 64% 52%;
+    --success-foreground: 0 0% 100%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 240 10% 4%;
+    --destructive: 346 89% 70%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 258 90% 66%;
+    --radius: 1rem;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 240 10% 4%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 18%;
+    --accent-foreground: 0 0% 98%;
+    --success: 158 64% 52%;
+    --success-foreground: 0 0% 100%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 240 10% 4%;
+    --destructive: 346 89% 70%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 258 90% 72%;
+    --sidebar: 240 10% 7%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-accent: 240 5% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(139, 92, 246, 0.18), transparent 32%),
+      radial-gradient(circle at 82% 14%, rgba(56, 189, 248, 0.14), transparent 22%),
+      linear-gradient(to bottom, rgba(9, 9, 11, 1), rgba(9, 9, 11, 1));
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(167, 139, 250, 0.28);
+    color: #fafafa;
+  }
+
+  a {
+    @apply transition-colors;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  .surface-glass {
+    @apply rounded-2xl border border-white/10 bg-zinc-900/70 shadow-panel backdrop-blur-xl;
+  }
+
+  .surface-panel {
+    @apply rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-card;
+  }
+
+  .surface-interactive {
+    @apply rounded-2xl border border-zinc-800 bg-zinc-900/80 shadow-card transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-900;
+  }
+
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  .hero-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+  }
+
+  .section-shell {
+    @apply mx-auto w-full max-w-7xl px-4 md:px-6;
+  }
+
+  .section-copy {
+    @apply max-w-2xl text-base leading-7 text-zinc-300 md:text-lg;
+  }
+
+  .focus-ring {
+    @apply ring-2 ring-violet-400/60 ring-offset-2 ring-offset-zinc-950;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .scrollbar-subtle {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(161, 161, 170, 0.35) transparent;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar-thumb {
+    background: rgba(161, 161, 170, 0.25);
+    border-radius: 9999px;
+  }
+}
