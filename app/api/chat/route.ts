@@ -10,7 +10,7 @@ import {
   deriveSessionTitleFromPrompt,
   ensureProfile,
   getSessionById,
-  saveMemory
+  saveMemory,
 } from "@/lib/supabase/queries";
 
 const chatRequestSchema = z.object({
@@ -19,11 +19,11 @@ const chatRequestSchema = z.object({
     .array(
       z.object({
         role: z.enum(["system", "user", "assistant"]),
-        content: z.string().trim().min(1).max(12000)
+        content: z.string().trim().min(1).max(12000),
       })
     )
     .min(1)
-    .max(40)
+    .max(40),
 });
 
 const SYSTEM_PROMPT = `
@@ -79,7 +79,7 @@ function createPlainTextStreamResponse(
       }
 
       controller.close();
-    }
+    },
   });
 
   return new Response(stream, {
@@ -88,8 +88,8 @@ function createPlainTextStreamResponse(
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
-      ...(init?.headers ?? {})
-    }
+      ...(init?.headers ?? {}),
+    },
   });
 }
 
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       return createPlainTextStreamResponse(
         "Please send a valid sessionId and chat message history.",
         {
-          status: 400
+          status: 400,
         }
       );
     }
@@ -163,42 +163,48 @@ export async function POST(request: Request) {
       .find((message) => message.role === "user");
 
     if (!latestUserMessage) {
-      return createPlainTextStreamResponse("At least one user message is required.", {
-        status: 400
-      });
+      return createPlainTextStreamResponse(
+        "At least one user message is required.",
+        {
+          status: 400,
+        }
+      );
     }
 
     const session = parsed.data.sessionId
       ? await getSessionById(parsed.data.sessionId)
       : await createSession({
-          title: deriveSessionTitleFromPrompt(latestUserMessage.content)
+          title: deriveSessionTitleFromPrompt(latestUserMessage.content),
         });
 
     await appendMessage(session.id, {
       role: "user",
       content: latestUserMessage.content,
       metadata: {
-        source: "workspace_chat"
-      }
+        source: "workspace_chat",
+      },
     });
 
-    if (!process.env.AI_GATEWAY_API_KEY) {
-      const fallbackText = buildFallbackText(latestUserMessage.content, session.id);
+    if (!process.env["AI_GATEWAY_API_KEY"]) {
+      const fallbackText = buildFallbackText(
+        latestUserMessage.content,
+        session.id
+      );
 
       await appendMessage(session.id, {
         role: "assistant",
         content: fallbackText,
         model: "fallback",
         metadata: {
-          fallback: true
-        }
+          fallback: true,
+        },
       });
 
       return createPlainTextStreamResponse(fallbackText, {
         headers: {
           "X-Chat-Mode": "fallback",
-          "X-Session-Id": session.id
-        }
+          "X-Session-Id": session.id,
+        },
       });
     }
 
@@ -207,7 +213,7 @@ export async function POST(request: Request) {
       system: SYSTEM_PROMPT,
       messages: parsed.data.messages.map((message) => ({
         role: message.role,
-        content: message.content
+        content: message.content,
       })),
       tools: {
         createTask: tool({
@@ -217,9 +223,13 @@ export async function POST(request: Request) {
             title: z.string().trim().min(1).max(200),
             description: z.string().trim().max(2000).optional(),
             projectId: z.string().uuid().optional(),
-            priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
-            status: z.enum(["todo", "in_progress", "blocked", "done"]).default("todo"),
-            dueAt: z.string().datetime().optional()
+            priority: z
+              .enum(["low", "medium", "high", "urgent"])
+              .default("medium"),
+            status: z
+              .enum(["todo", "in_progress", "blocked", "done"])
+              .default("todo"),
+            dueAt: z.string().datetime().optional(),
           }),
           execute: async (input) => {
             const task = await createTask({
@@ -232,8 +242,8 @@ export async function POST(request: Request) {
               dueAt: input.dueAt ?? null,
               source: "assistant",
               metadata: {
-                origin: "api_chat_tool"
-              }
+                origin: "api_chat_tool",
+              },
             });
 
             return {
@@ -242,9 +252,9 @@ export async function POST(request: Request) {
               status: task.status,
               priority: task.priority,
               projectId: task.project_id,
-              dueAt: task.due_at
+              dueAt: task.due_at,
             };
-          }
+          },
         }),
         createProject: tool({
           description:
@@ -252,8 +262,10 @@ export async function POST(request: Request) {
           inputSchema: z.object({
             name: z.string().trim().min(1).max(140),
             description: z.string().trim().max(2000).optional(),
-            status: z.enum(["active", "on_hold", "completed", "archived"]).default("active"),
-            color: z.string().trim().max(32).optional()
+            status: z
+              .enum(["active", "on_hold", "completed", "archived"])
+              .default("active"),
+            color: z.string().trim().max(32).optional(),
           }),
           execute: async (input) => {
             const project = await createProject({
@@ -262,8 +274,8 @@ export async function POST(request: Request) {
               status: input.status,
               color: input.color ?? null,
               metadata: {
-                origin: "api_chat_tool"
-              }
+                origin: "api_chat_tool",
+              },
             });
 
             return {
@@ -271,9 +283,9 @@ export async function POST(request: Request) {
               name: project.name,
               slug: project.slug,
               status: project.status,
-              color: project.color
+              color: project.color,
             };
-          }
+          },
         }),
         saveMemory: tool({
           description:
@@ -281,10 +293,17 @@ export async function POST(request: Request) {
           inputSchema: z.object({
             content: z.string().trim().min(1).max(4000),
             kind: z
-              .enum(["general", "preference", "fact", "constraint", "summary", "decision"])
+              .enum([
+                "general",
+                "preference",
+                "fact",
+                "constraint",
+                "summary",
+                "decision",
+              ])
               .default("general"),
             importance: z.number().int().min(1).max(5).default(3),
-            projectId: z.string().uuid().optional()
+            projectId: z.string().uuid().optional(),
           }),
           execute: async (input) => {
             const memory = await saveMemory({
@@ -295,18 +314,18 @@ export async function POST(request: Request) {
               sessionId: session.id,
               source: "assistant",
               metadata: {
-                origin: "api_chat_tool"
-              }
+                origin: "api_chat_tool",
+              },
             });
 
             return {
               id: memory.id,
               content: memory.content,
               kind: memory.kind,
-              importance: memory.importance
+              importance: memory.importance,
             };
-          }
-        })
+          },
+        }),
       },
       maxSteps: 5,
       abortSignal: request.signal,
@@ -314,7 +333,7 @@ export async function POST(request: Request) {
         const toolResults = steps.flatMap((step) =>
           (step.toolResults ?? []).map((result) => ({
             toolName: result.toolName,
-            result: result.output
+            result: result.output,
           }))
         );
 
@@ -328,18 +347,18 @@ export async function POST(request: Request) {
           model: "openai/gpt-5.4",
           metadata: {
             finishReason,
-            toolResults
-          }
+            toolResults,
+          },
         });
-      }
+      },
     });
 
     return result.toTextStreamResponse({
       headers: {
         "Cache-Control": "no-store",
         "X-Chat-Mode": "live",
-        "X-Session-Id": session.id
-      }
+        "X-Session-Id": session.id,
+      },
     });
   } catch (error) {
     const message =
@@ -350,8 +369,8 @@ export async function POST(request: Request) {
       {
         status: 500,
         headers: {
-          "X-Chat-Mode": "error"
-        }
+          "X-Chat-Mode": "error",
+        },
       }
     );
   }
