@@ -230,7 +230,10 @@ async function assertProjectOwnership(
   return data;
 }
 
-async function buildUniqueProjectSlug(supabase: AppSupabaseClient, projectName: string) {
+async function buildUniqueProjectSlug(
+  supabase: AppSupabaseClient,
+  projectName: string
+) {
   const baseSlug = slugify(projectName) || "project";
 
   const { data, error } = await supabase
@@ -254,7 +257,7 @@ async function buildUniqueProjectSlug(supabase: AppSupabaseClient, projectName: 
   return `${baseSlug}-${suffix}`;
 }
 
-export async function listSessions(limit = 20) {
+export async function listSessions(limit = 20): Promise<SessionRow[]> {
   const { supabase } = await requireAuthenticatedContext();
 
   const { data, error } = await supabase
@@ -265,15 +268,17 @@ export async function listSessions(limit = 20) {
 
   assertNoError(error);
 
-  return data ?? [];
+  return (data ?? []) as SessionRow[];
 }
 
-export async function getSessionById(sessionId: string) {
+export async function getSessionById(sessionId: string): Promise<SessionRow> {
   const { supabase } = await requireAuthenticatedContext();
   return assertSessionOwnership(supabase, sessionId);
 }
 
-export async function createSession(input: CreateSessionInput = {}) {
+export async function createSession(
+  input: CreateSessionInput = {}
+): Promise<SessionRow> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   const title = truncate(input.title?.trim() || "New chat", 120);
@@ -290,10 +295,17 @@ export async function createSession(input: CreateSessionInput = {}) {
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Session creation returned no data.");
+  }
+
+  return data as SessionRow;
 }
 
-export async function updateSession(sessionId: string, input: Partial<CreateSessionInput>) {
+export async function updateSession(
+  sessionId: string,
+  input: Partial<CreateSessionInput>
+): Promise<SessionRow> {
   const { supabase } = await requireAuthenticatedContext();
 
   await assertSessionOwnership(supabase, sessionId);
@@ -317,10 +329,17 @@ export async function updateSession(sessionId: string, input: Partial<CreateSess
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Session update returned no data.");
+  }
+
+  return data as SessionRow;
 }
 
-export async function archiveSession(sessionId: string, archived = true) {
+export async function archiveSession(
+  sessionId: string,
+  archived = true
+): Promise<SessionRow> {
   const { supabase } = await requireAuthenticatedContext();
 
   await assertSessionOwnership(supabase, sessionId);
@@ -334,7 +353,11 @@ export async function archiveSession(sessionId: string, archived = true) {
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Session archive returned no data.");
+  }
+
+  return data as SessionRow;
 }
 
 export async function listMessages(sessionId: string) {
@@ -350,13 +373,16 @@ export async function listMessages(sessionId: string) {
 
   assertNoError(error);
 
-  return (data ?? []).map((message) => ({
+  return ((data ?? []) as MessageRow[]).map((message) => ({
     ...message,
     text: extractTextContent(message.content)
   }));
 }
 
-export async function appendMessage(sessionId: string, message: ChatMessageInput) {
+export async function appendMessage(
+  sessionId: string,
+  message: ChatMessageInput
+): Promise<MessageRow> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   await assertSessionOwnership(supabase, sessionId);
@@ -378,10 +404,17 @@ export async function appendMessage(sessionId: string, message: ChatMessageInput
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Message insert returned no data.");
+  }
+
+  return data as MessageRow;
 }
 
-export async function appendMessages(sessionId: string, messages: ChatMessageInput[]) {
+export async function appendMessages(
+  sessionId: string,
+  messages: ChatMessageInput[]
+): Promise<MessageRow[]> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   await assertSessionOwnership(supabase, sessionId);
@@ -408,10 +441,10 @@ export async function appendMessages(sessionId: string, messages: ChatMessageInp
 
   assertNoError(error);
 
-  return data ?? [];
+  return (data ?? []) as MessageRow[];
 }
 
-export async function createTask(input: CreateTaskInput) {
+export async function createTask(input: CreateTaskInput): Promise<TaskRow> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   if (input.projectId) {
@@ -441,10 +474,14 @@ export async function createTask(input: CreateTaskInput) {
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Task creation returned no data.");
+  }
+
+  return data as TaskRow;
 }
 
-export async function listTasks(limit = 20) {
+export async function listTasks(limit = 20): Promise<TaskRow[]> {
   const { supabase } = await requireAuthenticatedContext();
 
   const { data, error } = await supabase
@@ -455,10 +492,12 @@ export async function listTasks(limit = 20) {
 
   assertNoError(error);
 
-  return data ?? [];
+  return (data ?? []) as TaskRow[];
 }
 
-export async function createProject(input: CreateProjectInput) {
+export async function createProject(
+  input: CreateProjectInput
+): Promise<ProjectRow> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   const name = truncate(input.name.trim(), 140);
@@ -480,10 +519,14 @@ export async function createProject(input: CreateProjectInput) {
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Project creation returned no data.");
+  }
+
+  return data as ProjectRow;
 }
 
-export async function listProjects(limit = 20) {
+export async function listProjects(limit = 20): Promise<ProjectRow[]> {
   const { supabase } = await requireAuthenticatedContext();
 
   const { data, error } = await supabase
@@ -494,10 +537,10 @@ export async function listProjects(limit = 20) {
 
   assertNoError(error);
 
-  return data ?? [];
+  return (data ?? []) as ProjectRow[];
 }
 
-export async function saveMemory(input: SaveMemoryInput) {
+export async function saveMemory(input: SaveMemoryInput): Promise<MemoryRow> {
   const { userId, supabase } = await requireAuthenticatedContext();
 
   if (input.projectId) {
@@ -527,10 +570,14 @@ export async function saveMemory(input: SaveMemoryInput) {
 
   assertNoError(error);
 
-  return data;
+  if (!data) {
+    throw new Error("Memory creation returned no data.");
+  }
+
+  return data as MemoryRow;
 }
 
-export async function listMemoryItems(limit = 20) {
+export async function listMemoryItems(limit = 20): Promise<MemoryRow[]> {
   const { supabase } = await requireAuthenticatedContext();
 
   const { data, error } = await supabase
@@ -541,7 +588,7 @@ export async function listMemoryItems(limit = 20) {
 
   assertNoError(error);
 
-  return data ?? [];
+  return (data ?? []) as MemoryRow[];
 }
 
 export async function getWorkspaceOverview(): Promise<WorkspaceOverview> {
@@ -597,14 +644,17 @@ export async function getWorkspaceOverview(): Promise<WorkspaceOverview> {
       projects: projectsCountResult.count ?? 0,
       memoryItems: memoryCountResult.count ?? 0
     },
-    recentSessions: sessionsResult.data ?? [],
-    recentTasks: tasksResult.data ?? [],
-    recentProjects: projectsResult.data ?? [],
-    recentMemoryItems: memoryResult.data ?? []
+    recentSessions: (sessionsResult.data ?? []) as SessionRow[],
+    recentTasks: (tasksResult.data ?? []) as TaskRow[],
+    recentProjects: (projectsResult.data ?? []) as ProjectRow[],
+    recentMemoryItems: (memoryResult.data ?? []) as MemoryRow[]
   };
 }
 
-export async function getOrCreateSession(sessionId: string | null | undefined, prompt?: string) {
+export async function getOrCreateSession(
+  sessionId: string | null | undefined,
+  prompt?: string
+): Promise<SessionRow> {
   if (sessionId) {
     return getSessionById(sessionId);
   }
