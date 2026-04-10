@@ -12,14 +12,14 @@ const demoSchema = z.object({
   role: z.string().trim().max(120).nullable().optional(),
   teamSize: z.string().trim().max(80).nullable().optional(),
   useCase: z.string().trim().min(10).max(4000),
-  calendlyEventUri: z.string().trim().url().nullable().optional()
+  calendlyEventUri: z.string().trim().url().nullable().optional(),
 });
 
 type DemoInsert = Database["public"]["Tables"]["demo_requests"]["Insert"];
 
 function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Supabase server environment is not configured.");
@@ -29,8 +29,8 @@ function getSupabaseAdminClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-      detectSessionInUrl: false
-    }
+      detectSessionInUrl: false,
+    },
   });
 }
 
@@ -42,13 +42,13 @@ async function submitToHubSpotDemoForm(input: {
   teamSize?: string | null;
   useCase: string;
 }) {
-  const portalId = process.env.HUBSPOT_PORTAL_ID;
-  const formGuid = process.env.HUBSPOT_DEMO_FORM_GUID;
+  const portalId = process.env["HUBSPOT_PORTAL_ID"];
+  const formGuid = process.env["HUBSPOT_DEMO_FORM_GUID"];
 
   if (!portalId || !formGuid) {
     return {
       ok: false,
-      reason: "HubSpot demo form configuration is missing."
+      reason: "HubSpot demo form configuration is missing.",
     } as const;
   }
 
@@ -68,9 +68,9 @@ async function submitToHubSpotDemoForm(input: {
           { name: "company", value: input.company ?? "" },
           { name: "jobtitle", value: input.role ?? "" },
           { name: "team_size", value: input.teamSize ?? "" },
-          { name: "use_case", value: input.useCase }
-        ]
-      })
+          { name: "use_case", value: input.useCase },
+        ],
+      }),
     }
   );
 
@@ -78,7 +78,7 @@ async function submitToHubSpotDemoForm(input: {
     const text = await response.text();
     return {
       ok: false,
-      reason: text || "HubSpot demo submission failed."
+      reason: text || "HubSpot demo submission failed.",
     } as const;
   }
 
@@ -92,8 +92,8 @@ async function sendDemoConfirmationEmail(input: {
   useCase: string;
   calendlyUrl?: string | null;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  const resendApiKey = process.env["RESEND_API_KEY"];
+  const fromEmail = process.env["RESEND_FROM_EMAIL"];
 
   if (!resendApiKey || !fromEmail) {
     return { ok: false, reason: "Resend is not configured." } as const;
@@ -122,7 +122,7 @@ async function sendDemoConfirmationEmail(input: {
         </div>
         ${calendlyBlock}
       </div>
-    `
+    `,
   });
 
   return { ok: true } as const;
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
 
     const { userId } = await auth();
     const supabase = getSupabaseAdminClient();
-    const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL ?? null;
+    const calendlyUrl = process.env["NEXT_PUBLIC_CALENDLY_URL"] ?? null;
 
     const payload: DemoInsert = {
       clerk_user_id: userId ?? null,
@@ -166,8 +166,8 @@ export async function POST(request: Request) {
       metadata: {
         userAgent: request.headers.get("user-agent"),
         submittedAt: new Date().toISOString(),
-        calendlyUrl
-      }
+        calendlyUrl,
+      },
     };
 
     const { data, error } = await supabase
@@ -189,14 +189,16 @@ export async function POST(request: Request) {
         company: parsed.data.company ?? null,
         role: parsed.data.role ?? null,
         teamSize: parsed.data.teamSize ?? null,
-        useCase: parsed.data.useCase
+        useCase: parsed.data.useCase,
       });
 
       if (!hubspotResult.ok) {
         warnings.push(hubspotResult.reason);
       }
     } catch (error) {
-      warnings.push(error instanceof Error ? error.message : "HubSpot submission failed.");
+      warnings.push(
+        error instanceof Error ? error.message : "HubSpot submission failed."
+      );
     }
 
     try {
@@ -205,14 +207,16 @@ export async function POST(request: Request) {
         email: parsed.data.email,
         company: parsed.data.company ?? null,
         useCase: parsed.data.useCase,
-        calendlyUrl
+        calendlyUrl,
       });
 
       if (!resendResult.ok) {
         warnings.push(resendResult.reason);
       }
     } catch (error) {
-      warnings.push(error instanceof Error ? error.message : "Resend delivery failed.");
+      warnings.push(
+        error instanceof Error ? error.message : "Resend delivery failed."
+      );
     }
 
     return Response.json(
@@ -221,7 +225,7 @@ export async function POST(request: Request) {
         id: data.id,
         message: "Demo request stored successfully.",
         calendlyUrl,
-        warnings
+        warnings,
       },
       { status: 200 }
     );
