@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { streamText, tool } from "ai";
+import { stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 import {
@@ -327,7 +327,7 @@ export async function POST(request: Request) {
           },
         }),
       },
-      maxSteps: 5,
+      stopWhen: stepCountIs(5),
       abortSignal: request.signal,
       onFinish: async ({ text, steps, finishReason }) => {
         const toolResults = steps.flatMap((step) =>
