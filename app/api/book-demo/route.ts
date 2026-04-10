@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { z } from "zod";
 
-import type { Database } from "@/lib/supabase";
-
 const demoSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(320),
@@ -15,7 +13,18 @@ const demoSchema = z.object({
   calendlyEventUri: z.string().trim().url().nullable().optional(),
 });
 
-type DemoInsert = Database["public"]["Tables"]["demo_requests"]["Insert"];
+type DemoInsertPayload = {
+  clerk_user_id?: string | null;
+  full_name: string;
+  email: string;
+  company?: string | null;
+  role?: string | null;
+  team_size?: string | null;
+  use_case: string;
+  calendly_event_uri?: string | null;
+  status?: "new" | "in_review" | "scheduled" | "closed" | "spam";
+  metadata?: Record<string, unknown>;
+};
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
@@ -25,7 +34,7 @@ function getSupabaseAdminClient() {
     throw new Error("Supabase server environment is not configured.");
   }
 
-  return createClient<Database>(supabaseUrl, serviceRoleKey, {
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -153,7 +162,7 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdminClient();
     const calendlyUrl = process.env["NEXT_PUBLIC_CALENDLY_URL"] ?? null;
 
-    const payload: DemoInsert = {
+    const payload: DemoInsertPayload = {
       clerk_user_id: userId ?? null,
       full_name: parsed.data.fullName,
       email: parsed.data.email,
@@ -222,7 +231,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         ok: true,
-        id: data.id,
+        id: data?.id ?? null,
         message: "Demo request stored successfully.",
         calendlyUrl,
         warnings,
