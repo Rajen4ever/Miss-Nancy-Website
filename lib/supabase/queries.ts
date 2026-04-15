@@ -17,6 +17,7 @@ type ProjectStatus = Database["public"]["Enums"]["project_status"];
 type TaskStatus = Database["public"]["Enums"]["task_status"];
 type TaskPriority = Database["public"]["Enums"]["task_priority"];
 type MemoryKind = Database["public"]["Enums"]["memory_kind"];
+type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
 type AuthenticatedContext = {
   userId: string;
@@ -176,7 +177,14 @@ export async function ensureProfile() {
     throw new Error("Current user does not have a valid email address.");
   }
 
-  const { error } = await supabase.from("profiles").upsert(
+  const profilesTable = supabase.from("profiles") as unknown as {
+    upsert: (
+      values: ProfileInsert,
+      options: { onConflict: "clerk_user_id" }
+    ) => Promise<{ error: { message: string } | null }>;
+  };
+
+  const { error } = await profilesTable.upsert(
     {
       clerk_user_id: authObject.userId,
       email: primaryEmail,
@@ -651,49 +659,127 @@ export async function getWorkspaceOverview(): Promise<WorkspaceOverview> {
   };
 }
 
-export async function getOrCreateSession(
-  sessionId: string | null | undefined,
-  prompt?: string
-): Promise<SessionRow> {
-  if (sessionId) {
+export async function listWorkspaceData(options?: {
+  sessionLimit?: number;
+  taskLimit?: number;
+  projectLimit?: number;
+  memoryLimit?: number;
+}) {
+  const [sessions, tasks, projects, memoryItems] = await Promise.all([
+    listSessions(options?.sessionLimit ?? 20),
+    listTasks(options?.taskLimit ?? 20),
+    listProjects(options?.projectLimit ?? 20),
+    listMemoryItems(options?.memoryLimit ?? 20)
+  ]);
+
+  return {
+    sessions,
+    tasks,
+    projects,
+    memoryItems
+  };
+}
+
+export async function renameSessionFromMessages(sessionId: string) {
+  const messages = await listMessages(sessionId);
+
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  if (!firstUserMessage) {
     return getSessionById(sessionId);
   }
 
-  return createSession({
-    title: prompt ? truncate(prompt, 80) : "New chat"
-  });
+  const summary = truncate(firstUserMessage.text.replace(/\s+/g, " ").trim(), 120);
+  return updateSession(sessionId, { title: summary });
 }
 
-export function toPlainTextMessages(
-  messages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }>
-) {
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content.trim()
-  }));
-}
+export async function seedWorkspaceDemoData() {
+  const { supabase } = await requireAuthenticatedContext();
 
-export async function getAuthenticatedUserId() {
-  const authObject = await auth();
-
-  if (!authObject.userId) {
-    throw new Error("Unauthorized");
+  const tasks = await listTasks(1);
+  if (tasks.length > 0) {
+    return;
   }
 
-  return authObject.userId;
-}
+  const project = await createProject({
+    name: "Miss Nancy launch workspace",
+    description: "Seed project created automatically for the authenticated workspace demo.",
+    status: "active",
+    color: "violet",
+    metadata: {
+      seeded: true
+    }
+  });
 
-export async function getAuthenticatedSupabaseContext() {
-  return requireAuthenticatedContext();
-}
+  await createTask({
+    title: "Review landing page hero copy",
+    description: "Tighten promise and align CTA hierarchy for public launch.",
+    projectId: project.id,
+    priority: "high",
+    status: "in_progress",
+    source: "system",
+    metadata: {
+      seeded: true
+    }
+  });
 
-export function readMessageText(message: Pick<MessageRow, "content">) {
-  return extractTextContent(message.content);
-}
+  await saveMemory({
+    content: "Primary audience cares about execution, clarity, and seeing working product proof.",
+    kind: "insight",
+    importance: 4,
+    projectId: project.id,
+    source: "system",
+    metadata: {
+      seeded: true
+    }
+  });
 
-export function deriveSessionTitleFromPrompt(prompt: string) {
-  return truncate(prompt.replace(/\s+/g, " ").trim(), 80) || "New chat";
+  const existingSessions = await listSessions(1);
+
+  if (!existingSessions.length) {
+    const session = await createSession({
+      title: "Miss Nancy launch planning",
+      summary: "Initial seeded session for the authenticated workspace demo."
+    });
+
+    await appendMessages(session.id, [
+      {
+        role: "user",
+        content: "Create a quick project and task plan for launching Miss Nancy publicly.",
+        metadata: {
+          seeded: true
+        }
+      },
+      {
+        role: "assistant",
+        content:
+          "I created a launch workspace with one active task and one memory item so the dashboard has real state.",
+        metadata: {
+          seeded: true,
+          toolResults: [
+            {
+              toolName: "createProject",
+              result: {
+                id: project.id,
+                name: project.name
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    await renameSessionFromMessages(session.id);
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      metadata: {
+        seeded: true,
+        updatedBy: "seedWorkspaceDemoData"
+      }
+    })
+    .eq("id", project.id);
+
+  assertNoError(error);
 }
