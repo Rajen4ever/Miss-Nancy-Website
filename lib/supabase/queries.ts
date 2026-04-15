@@ -87,6 +87,16 @@ export type WorkspaceOverview = {
   recentMemoryItems: MemoryRow[];
 };
 
+export function deriveSessionTitleFromPrompt(prompt: string) {
+  const normalized = prompt.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "New chat";
+  }
+
+  return truncate(normalized, 120);
+}
+
 function createTextContent(text: string): Json {
   return [
     {
