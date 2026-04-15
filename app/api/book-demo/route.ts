@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { z } from "zod";
 
+import type { Database } from "@/lib/supabase";
+
 const demoSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(320),
@@ -10,21 +12,10 @@ const demoSchema = z.object({
   role: z.string().trim().max(120).nullable().optional(),
   teamSize: z.string().trim().max(80).nullable().optional(),
   useCase: z.string().trim().min(10).max(4000),
-  calendlyEventUri: z.string().trim().url().nullable().optional(),
+  calendlyEventUri: z.string().trim().url().nullable().optional()
 });
 
-type DemoInsertPayload = {
-  clerk_user_id?: string | null;
-  full_name: string;
-  email: string;
-  company?: string | null;
-  role?: string | null;
-  team_size?: string | null;
-  use_case: string;
-  calendly_event_uri?: string | null;
-  status?: "new" | "in_review" | "scheduled" | "closed" | "spam";
-  metadata?: Record<string, unknown>;
-};
+type DemoInsert = Database["public"]["Tables"]["demo_requests"]["Insert"];
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
@@ -34,12 +25,12 @@ function getSupabaseAdminClient() {
     throw new Error("Supabase server environment is not configured.");
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-      detectSessionInUrl: false,
-    },
+      detectSessionInUrl: false
+    }
   });
 }
 
@@ -57,7 +48,7 @@ async function submitToHubSpotDemoForm(input: {
   if (!portalId || !formGuid) {
     return {
       ok: false,
-      reason: "HubSpot demo form configuration is missing.",
+      reason: "HubSpot demo form configuration is missing."
     } as const;
   }
 
@@ -77,9 +68,9 @@ async function submitToHubSpotDemoForm(input: {
           { name: "company", value: input.company ?? "" },
           { name: "jobtitle", value: input.role ?? "" },
           { name: "team_size", value: input.teamSize ?? "" },
-          { name: "use_case", value: input.useCase },
-        ],
-      }),
+          { name: "use_case", value: input.useCase }
+        ]
+      })
     }
   );
 
@@ -87,7 +78,7 @@ async function submitToHubSpotDemoForm(input: {
     const text = await response.text();
     return {
       ok: false,
-      reason: text || "HubSpot demo submission failed.",
+      reason: text || "HubSpot demo submission failed."
     } as const;
   }
 
@@ -131,7 +122,7 @@ async function sendDemoConfirmationEmail(input: {
         </div>
         ${calendlyBlock}
       </div>
-    `,
+    `
   });
 
   return { ok: true } as const;
@@ -162,7 +153,7 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdminClient();
     const calendlyUrl = process.env["NEXT_PUBLIC_CALENDLY_URL"] ?? null;
 
-    const payload: DemoInsertPayload = {
+    const payload: DemoInsert = {
       clerk_user_id: userId ?? null,
       full_name: parsed.data.fullName,
       email: parsed.data.email,
@@ -175,18 +166,31 @@ export async function POST(request: Request) {
       metadata: {
         userAgent: request.headers.get("user-agent"),
         submittedAt: new Date().toISOString(),
-        calendlyUrl,
-      },
+        calendlyUrl
+      }
     };
 
-    const { data, error } = await supabase
-      .from("demo_requests")
-      .insert(payload)
-      .select("id")
-      .single();
+    const demoRequestsTable = supabase.from(
+      "demo_requests"
+    ) as unknown as {
+      insert: (values: DemoInsert) => {
+        select: (columns: "id") => {
+          single: () => Promise<{
+            data: { id: string } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+
+    const { data, error } = await demoRequestsTable.insert(payload).select("id").single();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Demo request insert returned no id.");
     }
 
     const warnings: string[] = [];
@@ -198,16 +202,14 @@ export async function POST(request: Request) {
         company: parsed.data.company ?? null,
         role: parsed.data.role ?? null,
         teamSize: parsed.data.teamSize ?? null,
-        useCase: parsed.data.useCase,
+        useCase: parsed.data.useCase
       });
 
       if (!hubspotResult.ok) {
         warnings.push(hubspotResult.reason);
       }
     } catch (error) {
-      warnings.push(
-        error instanceof Error ? error.message : "HubSpot submission failed."
-      );
+      warnings.push(error instanceof Error ? error.message : "HubSpot submission failed.");
     }
 
     try {
@@ -216,25 +218,23 @@ export async function POST(request: Request) {
         email: parsed.data.email,
         company: parsed.data.company ?? null,
         useCase: parsed.data.useCase,
-        calendlyUrl,
+        calendlyUrl
       });
 
       if (!resendResult.ok) {
         warnings.push(resendResult.reason);
       }
     } catch (error) {
-      warnings.push(
-        error instanceof Error ? error.message : "Resend delivery failed."
-      );
+      warnings.push(error instanceof Error ? error.message : "Resend delivery failed.");
     }
 
     return Response.json(
       {
         ok: true,
-        id: data?.id ?? null,
+        id: data.id,
         message: "Demo request stored successfully.",
         calendlyUrl,
-        warnings,
+        warnings
       },
       { status: 200 }
     );
