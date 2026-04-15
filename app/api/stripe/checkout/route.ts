@@ -9,6 +9,9 @@ const checkoutSchema = z.object({
   plan: z.literal("operator")
 });
 
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
+
 function getStripeClient() {
   const stripeSecretKey = process.env["STRIPE_SECRET_KEY"];
 
@@ -46,8 +49,26 @@ async function getOrCreateStripeCustomer(args: {
 }) {
   const supabase = getSupabaseAdminClient();
 
-  const { data: existingProfile, error: profileError } = await supabase
-    .from("profiles")
+  const profilesTable = supabase.from("profiles") as unknown as {
+    select: (
+      columns: "clerk_user_id, email, first_name, last_name, image_url, stripe_customer_id"
+    ) => {
+      eq: (column: "clerk_user_id", value: string) => {
+        maybeSingle: () => Promise<{
+          data: ProfileRow | null;
+          error: { message: string } | null;
+        }>;
+      };
+    };
+    upsert: (
+      values: ProfileInsert,
+      options: { onConflict: "clerk_user_id" }
+    ) => Promise<{
+      error: { message: string } | null;
+    }>;
+  };
+
+  const { data: existingProfile, error: profileError } = await profilesTable
     .select("clerk_user_id, email, first_name, last_name, image_url, stripe_customer_id")
     .eq("clerk_user_id", args.clerkUserId)
     .maybeSingle();
@@ -74,14 +95,7 @@ async function getOrCreateStripeCustomer(args: {
     existingProfile?.last_name ??
     (nameParts.length > 1 ? nameParts.slice(1).join(" ") : null);
 
-  const profilesUpsertTable = supabase.from("profiles") as unknown as {
-    upsert: (
-      values: Database["public"]["Tables"]["profiles"]["Insert"],
-      options: { onConflict: "clerk_user_id" }
-    ) => Promise<{ error: { message: string } | null }>;
-  };
-
-  const { error: upsertError } = await profilesUpsertTable.upsert(
+  const { error: upsertError } = await profilesTable.upsert(
     {
       clerk_user_id: args.clerkUserId,
       email: existingProfile?.email ?? args.email,
