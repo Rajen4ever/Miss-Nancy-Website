@@ -14,6 +14,7 @@ import {
   StopCircle
 } from "lucide-react";
 
+import type { Database, Json } from "@/lib/supabase";
 import { cn, formatRelativeLabel, truncate } from "@/lib/utils";
 import { MemoryList } from "@/components/workspace/memory-list";
 import { ProjectList } from "@/components/workspace/project-list";
@@ -24,71 +25,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-type SessionItem = {
-  id: string;
-  title: string;
-  last_message_at: string;
-};
-
-type TaskItem = {
-  id: string;
-  project_id: string | null;
-  created_from_session_id: string | null;
-  title: string;
-  description: string | null;
-  status: "todo" | "in_progress" | "blocked" | "done";
-  priority: "low" | "medium" | "high" | "urgent";
-  due_at: string | null;
-  completed_at: string | null;
-  sort_order: number;
-  source: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  clerk_user_id: string;
-};
-
-type ProjectItem = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  status: "active" | "on_hold" | "completed" | "archived";
-  color: string | null;
-  metadata: Record<string, unknown>;
-  archived: boolean;
-  created_at: string;
-  updated_at: string;
-  clerk_user_id: string;
-};
-
-type MemoryItem = {
-  id: string;
-  project_id: string | null;
-  session_id: string | null;
-  content: string;
-  kind: "general" | "preference" | "fact" | "constraint" | "summary" | "decision";
-  importance: number;
-  source: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  clerk_user_id: string;
-};
+type SessionItem = Pick<
+  Database["public"]["Tables"]["sessions"]["Row"],
+  "id" | "title" | "last_message_at"
+>;
+type TaskItem = Database["public"]["Tables"]["tasks"]["Row"];
+type ProjectItem = Database["public"]["Tables"]["projects"]["Row"];
+type MemoryItem = Database["public"]["Tables"]["memory_items"]["Row"];
 
 type InitialMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
   created_at: string;
-  metadata: Record<string, unknown>;
+  metadata: Json;
 };
 
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Json;
 };
 
 type ToolResult = {
@@ -113,8 +70,8 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function extractToolResults(metadata?: Record<string, unknown>): ToolResult[] {
-  if (!metadata || typeof metadata !== "object") {
+function extractToolResults(metadata?: Json): ToolResult[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return [];
   }
 
@@ -345,8 +302,7 @@ export function WorkspaceChatClient({
 
       router.refresh();
     } catch (caughtError) {
-      const aborted =
-        caughtError instanceof DOMException && caughtError.name === "AbortError";
+      const aborted = caughtError instanceof DOMException && caughtError.name === "AbortError";
 
       const message = aborted
         ? "Streaming stopped."
@@ -513,7 +469,9 @@ export function WorkspaceChatClient({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <CardTitle className="font-display text-2xl text-zinc-50">Workspace chat</CardTitle>
+                  <CardTitle className="font-display text-2xl text-zinc-50">
+                    Workspace chat
+                  </CardTitle>
                   <Badge className="border-violet-400/20 bg-violet-500/10 text-violet-200">
                     Persistent
                   </Badge>
@@ -672,7 +630,9 @@ export function WorkspaceChatClient({
               <Badge className="mb-3 w-fit border-violet-400/20 bg-violet-500/10 text-violet-200">
                 Recent projects
               </Badge>
-              <CardTitle className="font-display text-xl text-zinc-50">Live workspace data</CardTitle>
+              <CardTitle className="font-display text-xl text-zinc-50">
+                Live workspace data
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ProjectList
