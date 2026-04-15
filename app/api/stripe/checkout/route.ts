@@ -10,7 +10,7 @@ const checkoutSchema = z.object({
 });
 
 function getStripeClient() {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeSecretKey = process.env["STRIPE_SECRET_KEY"];
 
   if (!stripeSecretKey) {
     throw new Error("Stripe is not configured.");
@@ -22,8 +22,8 @@ function getStripeClient() {
 }
 
 function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Supabase server environment is not configured.");
@@ -74,7 +74,14 @@ async function getOrCreateStripeCustomer(args: {
     existingProfile?.last_name ??
     (nameParts.length > 1 ? nameParts.slice(1).join(" ") : null);
 
-  const { error: upsertError } = await supabase.from("profiles").upsert(
+  const profilesUpsertTable = supabase.from("profiles") as unknown as {
+    upsert: (
+      values: Database["public"]["Tables"]["profiles"]["Insert"],
+      options: { onConflict: "clerk_user_id" }
+    ) => Promise<{ error: { message: string } | null }>;
+  };
+
+  const { error: upsertError } = await profilesUpsertTable.upsert(
     {
       clerk_user_id: args.clerkUserId,
       email: existingProfile?.email ?? args.email,
@@ -111,8 +118,8 @@ export async function POST(request: Request) {
       return new Response("Invalid checkout payload.", { status: 400 });
     }
 
-    const operatorPriceId = process.env.STRIPE_OPERATOR_PRICE_ID;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const operatorPriceId = process.env["STRIPE_OPERATOR_PRICE_ID"];
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
 
     if (!operatorPriceId) {
       return new Response("Operator price is not configured.", { status: 500 });
