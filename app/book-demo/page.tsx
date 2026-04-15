@@ -29,7 +29,7 @@ type DemoFormState = {
   useCase: string;
 };
 
-const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL ?? "";
+const calendlyUrl = process.env["NEXT_PUBLIC_CALENDLY_URL"] ?? "";
 
 export default function BookDemoPage() {
   const searchParams = useSearchParams();
