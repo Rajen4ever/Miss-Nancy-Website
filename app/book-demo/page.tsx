@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { InlineWidget } from "react-calendly";
 import {
   ArrowRight,
@@ -31,7 +31,26 @@ type DemoFormState = {
 
 const calendlyUrl = process.env["NEXT_PUBLIC_CALENDLY_URL"] ?? "";
 
-export default function BookDemoPage() {
+function BookDemoPageFallback() {
+  return (
+    <main className="relative overflow-x-clip">
+      <SiteHeader />
+      <section className="relative isolate overflow-hidden">
+        <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-hero-radial" />
+        <div className="section-shell pt-24 pb-16 md:pt-32 md:pb-24">
+          <div className="flex min-h-[420px] items-center justify-center">
+            <div className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/70 px-5 py-4 text-sm text-zinc-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading demo page...
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function BookDemoPageContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan");
 
@@ -171,7 +190,9 @@ export default function BookDemoPage() {
 
             <Card className="border-zinc-800 bg-zinc-900/85 shadow-panel">
               <CardHeader className="p-8">
-                <CardTitle className="font-display text-3xl text-zinc-50">Request your demo</CardTitle>
+                <CardTitle className="font-display text-3xl text-zinc-50">
+                  Request your demo
+                </CardTitle>
               </CardHeader>
 
               <CardContent className="p-8 pt-0">
@@ -190,40 +211,98 @@ export default function BookDemoPage() {
                 <form className="space-y-4" onSubmit={handleSubmit}>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label htmlFor="fullName" className="text-sm font-medium text-zinc-300">Full name</label>
-                      <Input id="fullName" value={form.fullName} onChange={(event)=>updateField("fullName",event.target.value)} placeholder="Your name" required />
+                      <label htmlFor="fullName" className="text-sm font-medium text-zinc-300">
+                        Full name
+                      </label>
+                      <Input
+                        id="fullName"
+                        value={form.fullName}
+                        onChange={(event) => updateField("fullName", event.target.value)}
+                        placeholder="Your name"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
-                      <label htmlFor="email" className="text-sm font-medium text-zinc-300">Work email</label>
-                      <Input id="email" type="email" value={form.email} onChange={(event)=>updateField("email",event.target.value)} placeholder="you@company.com" required />
+                      <label htmlFor="email" className="text-sm font-medium text-zinc-300">
+                        Work email
+                      </label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={form.email}
+                        onChange={(event) => updateField("email", event.target.value)}
+                        placeholder="you@company.com"
+                        required
+                      />
                     </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label htmlFor="company" className="text-sm font-medium text-zinc-300">Company</label>
-                      <Input id="company" value={form.company} onChange={(event)=>updateField("company",event.target.value)} placeholder="Company name" />
+                      <label htmlFor="company" className="text-sm font-medium text-zinc-300">
+                        Company
+                      </label>
+                      <Input
+                        id="company"
+                        value={form.company}
+                        onChange={(event) => updateField("company", event.target.value)}
+                        placeholder="Company name"
+                      />
                     </div>
                     <div className="space-y-2">
-                      <label htmlFor="role" className="text-sm font-medium text-zinc-300">Role</label>
-                      <Input id="role" value={form.role} onChange={(event)=>updateField("role",event.target.value)} placeholder="Founder, Ops, Product..." />
+                      <label htmlFor="role" className="text-sm font-medium text-zinc-300">
+                        Role
+                      </label>
+                      <Input
+                        id="role"
+                        value={form.role}
+                        onChange={(event) => updateField("role", event.target.value)}
+                        placeholder="Founder, Ops, Product..."
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="teamSize" className="text-sm font-medium text-zinc-300">Team size</label>
-                    <Input id="teamSize" value={form.teamSize} onChange={(event)=>updateField("teamSize",event.target.value)} placeholder="1-5, 6-20, 21-100..." />
+                    <label htmlFor="teamSize" className="text-sm font-medium text-zinc-300">
+                      Team size
+                    </label>
+                    <Input
+                      id="teamSize"
+                      value={form.teamSize}
+                      onChange={(event) => updateField("teamSize", event.target.value)}
+                      placeholder="1-5, 6-20, 21-100..."
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="useCase" className="text-sm font-medium text-zinc-300">What do you want to see?</label>
-                    <Textarea id="useCase" value={form.useCase} onChange={(event)=>updateField("useCase",event.target.value)} placeholder="Tell us the workflow, team need, or use case you want to cover..." required />
+                    <label htmlFor="useCase" className="text-sm font-medium text-zinc-300">
+                      What do you want to see?
+                    </label>
+                    <Textarea
+                      id="useCase"
+                      value={form.useCase}
+                      onChange={(event) => updateField("useCase", event.target.value)}
+                      placeholder="Tell us the workflow, team need, or use case you want to cover..."
+                      required
+                    />
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <p className="text-xs text-zinc-500">This form posts to <code>/api/book-demo</code>.</p>
+                    <p className="text-xs text-zinc-500">
+                      This form posts to <code>/api/book-demo</code>.
+                    </p>
                     <Button type="submit" size="lg" disabled={isSubmitting}>
-                      {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" />Sending</> : <>Request demo<ArrowRight className="h-4 w-4" /></>}
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Sending
+                        </>
+                      ) : (
+                        <>
+                          Request demo
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -232,16 +311,25 @@ export default function BookDemoPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-display text-lg text-zinc-50">Prefer to pick a time?</p>
-                      <p className="mt-1 text-sm text-zinc-400">Use the Calendly option when a public booking URL is configured.</p>
+                      <p className="mt-1 text-sm text-zinc-400">
+                        Use the Calendly option when a public booking URL is configured.
+                      </p>
                     </div>
                     {calendlyUrl ? (
-                      <Button type="button" variant="secondary" onClick={() => setShowCalendly((current) => !current)}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setShowCalendly((current) => !current)}
+                      >
                         <PlayCircle className="h-4 w-4" />
                         {showCalendly ? "Hide Calendly" : "Open Calendly"}
                       </Button>
                     ) : (
                       <Button asChild variant="secondary">
-                        <Link href="/contact">Contact instead<ArrowRight className="h-4 w-4" /></Link>
+                        <Link href="/contact">
+                          Contact instead
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
                       </Button>
                     )}
                   </div>
@@ -256,8 +344,12 @@ export default function BookDemoPage() {
         <section className="section-shell pb-20 md:pb-28">
           <Card className="overflow-hidden border-zinc-800 bg-zinc-900/85 shadow-panel">
             <CardHeader className="p-8">
-              <Badge variant="secondary" className="mb-4 w-fit">Calendly</Badge>
-              <CardTitle className="font-display text-3xl text-zinc-50">Schedule directly</CardTitle>
+              <Badge variant="secondary" className="mb-4 w-fit">
+                Calendly
+              </Badge>
+              <CardTitle className="font-display text-3xl text-zinc-50">
+                Schedule directly
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="h-[760px] w-full">
@@ -278,5 +370,13 @@ export default function BookDemoPage() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+export default function BookDemoPage() {
+  return (
+    <Suspense fallback={<BookDemoPageFallback />}>
+      <BookDemoPageContent />
+    </Suspense>
   );
 }
