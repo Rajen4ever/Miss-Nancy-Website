@@ -16,8 +16,8 @@ const leadSchema = z.object({
 type ContactInsert = Database["public"]["Tables"]["contact_submissions"]["Insert"];
 
 function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Supabase server environment is not configured.");
@@ -38,8 +38,8 @@ async function submitToHubSpotContactForm(input: {
   company?: string | null;
   message: string;
 }) {
-  const portalId = process.env.HUBSPOT_PORTAL_ID;
-  const formGuid = process.env.HUBSPOT_CONTACT_FORM_GUID;
+  const portalId = process.env["HUBSPOT_PORTAL_ID"];
+  const formGuid = process.env["HUBSPOT_CONTACT_FORM_GUID"];
 
   if (!portalId || !formGuid) {
     return {
@@ -89,8 +89,8 @@ async function sendContactConfirmationEmail(input: {
   company?: string | null;
   message: string;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  const resendApiKey = process.env["RESEND_API_KEY"];
+  const fromEmail = process.env["RESEND_FROM_EMAIL"];
 
   if (!resendApiKey || !fromEmail) {
     return {
