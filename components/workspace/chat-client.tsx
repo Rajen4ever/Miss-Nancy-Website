@@ -118,7 +118,7 @@ function extractToolResults(metadata?: Record<string, unknown>): ToolResult[] {
     return [];
   }
 
-  const maybeResults = metadata.toolResults;
+  const maybeResults = metadata["toolResults"];
 
   if (!Array.isArray(maybeResults)) {
     return [];
@@ -144,20 +144,20 @@ function getToolResultSummary(toolName: string, result: unknown) {
   if (result && typeof result === "object") {
     const record = result as Record<string, unknown>;
 
-    if (typeof record.title === "string") {
-      return record.title;
+    if (typeof record["title"] === "string") {
+      return record["title"];
     }
 
-    if (typeof record.name === "string") {
-      return record.name;
+    if (typeof record["name"] === "string") {
+      return record["name"];
     }
 
-    if (typeof record.content === "string") {
-      return truncate(record.content, 96);
+    if (typeof record["content"] === "string") {
+      return truncate(record["content"], 96);
     }
 
-    if (typeof record.id === "string") {
-      return record.id;
+    if (typeof record["id"] === "string") {
+      return record["id"];
     }
   }
 
