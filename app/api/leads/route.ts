@@ -168,14 +168,30 @@ export async function POST(request: Request) {
       }
     };
 
-    const { data, error } = await supabase
-      .from("contact_submissions")
+    const contactSubmissionsTable = supabase.from(
+      "contact_submissions"
+    ) as unknown as {
+      insert: (values: ContactInsert) => {
+        select: (columns: "id") => {
+          single: () => Promise<{
+            data: { id: string } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+
+    const { data, error } = await contactSubmissionsTable
       .insert(payload)
       .select("id")
       .single();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Contact request insert returned no id.");
     }
 
     const warnings: string[] = [];
