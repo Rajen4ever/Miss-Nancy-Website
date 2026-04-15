@@ -133,6 +133,16 @@ The authenticated chat route is active, Clerk authentication is verified, and se
 Session ready: ${sessionId}`;
 }
 
+function safeSerialize(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? null);
+  } catch {
+    return JSON.stringify({
+      error: "Unable to serialize tool results",
+    });
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -333,7 +343,7 @@ export async function POST(request: Request) {
         const toolResults = steps.flatMap((step) =>
           (step.toolResults ?? []).map((result) => ({
             toolName: result.toolName,
-            result: result.output,
+            result: safeSerialize(result.output),
           }))
         );
 
@@ -346,7 +356,7 @@ export async function POST(request: Request) {
           content: finalText,
           model: "openai/gpt-5.4",
           metadata: {
-            finishReason,
+            finishReason: String(finishReason),
             toolResults,
           },
         });
