@@ -226,7 +226,7 @@ async function assertSessionOwnership(
     throw new Error("Session not found.");
   }
 
-  return data;
+  return data as SessionRow;
 }
 
 async function assertProjectOwnership(
@@ -245,7 +245,7 @@ async function assertProjectOwnership(
     throw new Error("Project not found.");
   }
 
-  return data;
+  return data as ProjectRow;
 }
 
 async function buildUniqueProjectSlug(
@@ -254,8 +254,16 @@ async function buildUniqueProjectSlug(
 ) {
   const baseSlug = slugify(projectName) || "project";
 
-  const { data, error } = await supabase
-    .from("projects")
+  const projectsTable = supabase.from("projects") as unknown as {
+    select: (columns: "slug") => {
+      ilike: (column: "slug", pattern: string) => Promise<{
+        data: Array<{ slug: string }> | null;
+        error: { message: string } | null;
+      }>;
+    };
+  };
+
+  const { data, error } = await projectsTable
     .select("slug")
     .ilike("slug", `${baseSlug}%`);
 
