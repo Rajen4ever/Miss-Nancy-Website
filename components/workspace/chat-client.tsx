@@ -50,7 +50,7 @@ type ChatMessage = {
 
 type ToolResult = {
   toolName: string;
-  result: unknown;
+  result: Json | null;
 };
 
 type WorkspaceChatClientProps = {
@@ -81,40 +81,44 @@ function extractToolResults(metadata?: Json): ToolResult[] {
     return [];
   }
 
-  return maybeResults
-    .filter(
-      (item): item is ToolResult =>
-        Boolean(
-          item &&
-            typeof item === "object" &&
-            "toolName" in item &&
-            typeof (item as { toolName?: unknown }).toolName === "string"
-        )
-    )
-    .map((item) => ({
-      toolName: item.toolName,
-      result: "result" in item ? item.result : null
-    }));
+  const results: ToolResult[] = [];
+
+  for (const item of maybeResults) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const toolName = item["toolName"];
+
+    if (typeof toolName !== "string") {
+      continue;
+    }
+
+    results.push({
+      toolName,
+      result: item["result"] ?? null
+    });
+  }
+
+  return results;
 }
 
-function getToolResultSummary(toolName: string, result: unknown) {
-  if (result && typeof result === "object") {
-    const record = result as Record<string, unknown>;
-
-    if (typeof record["title"] === "string") {
-      return record["title"];
+function getToolResultSummary(toolName: string, result: Json | null) {
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    if (typeof result["title"] === "string") {
+      return result["title"];
     }
 
-    if (typeof record["name"] === "string") {
-      return record["name"];
+    if (typeof result["name"] === "string") {
+      return result["name"];
     }
 
-    if (typeof record["content"] === "string") {
-      return truncate(record["content"], 96);
+    if (typeof result["content"] === "string") {
+      return truncate(result["content"], 96);
     }
 
-    if (typeof record["id"] === "string") {
-      return record["id"];
+    if (typeof result["id"] === "string") {
+      return result["id"];
     }
   }
 
@@ -550,7 +554,9 @@ export function WorkspaceChatClient({
                                   </div>
                                 </div>
 
-                                {toolResult.result && typeof toolResult.result === "object" ? (
+                                {toolResult.result &&
+                                typeof toolResult.result === "object" &&
+                                !Array.isArray(toolResult.result) ? (
                                   <pre className="mt-3 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 text-xs leading-6 text-zinc-400">
                                     {JSON.stringify(toolResult.result, null, 2)}
                                   </pre>
