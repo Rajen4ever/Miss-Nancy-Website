@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function absoluteUrl(path: string) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+    process.env["NEXT_PUBLIC_APP_URL"]?.replace(/\/$/, "") ?? "http://localhost:3000";
   return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
