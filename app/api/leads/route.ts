@@ -32,6 +32,20 @@ function getSupabaseAdminClient() {
   });
 }
 
+function normalizeHubSpotError(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "HubSpot contact form sync failed.";
+  }
+
+  if (/HTTP ERROR 404|Resource not found/i.test(normalized)) {
+    return "HubSpot contact form sync is misconfigured right now.";
+  }
+
+  return normalized.length > 240 ? `${normalized.slice(0, 237)}...` : normalized;
+}
+
 async function submitToHubSpotContactForm(input: {
   fullName: string;
   email: string;
@@ -72,15 +86,36 @@ async function submitToHubSpotContactForm(input: {
 
   if (!response.ok) {
     const text = await response.text();
+
     return {
       ok: false,
-      reason: text || "HubSpot submission failed."
+      reason: normalizeHubSpotError(text)
     } as const;
   }
 
   return {
     ok: true
   } as const;
+}
+
+function normalizeResendError(value: unknown) {
+  if (!value) {
+    return "Resend delivery failed.";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object" && "message" in value) {
+    const message = value["message"];
+
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  return "Resend delivery failed.";
 }
 
 async function sendContactConfirmationEmail(input: {
@@ -101,7 +136,7 @@ async function sendContactConfirmationEmail(input: {
 
   const resend = new Resend(resendApiKey);
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from: fromEmail,
     to: input.email,
     subject: "We received your Miss Nancy contact request",
@@ -123,6 +158,13 @@ async function sendContactConfirmationEmail(input: {
       </div>
     `
   });
+
+  if (result && typeof result === "object" && "error" in result && result.error) {
+    return {
+      ok: false,
+      reason: normalizeResendError(result.error)
+    } as const;
+  }
 
   return {
     ok: true
