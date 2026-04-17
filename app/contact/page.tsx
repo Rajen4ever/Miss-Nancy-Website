@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { ArrowRight, Loader2, Mail, MessageSquareText, Sparkles } from "lucide-react";
 
 import { SiteHeader } from "@/components/layout/site-header";
@@ -19,12 +19,54 @@ type ContactFormState = {
   message: string;
 };
 
+type LeadApiResponse = {
+  ok?: boolean;
+  id?: string;
+  message?: string;
+  warnings?: string[];
+};
+
 const initialState: ContactFormState = {
   fullName: "",
   email: "",
   company: "",
   message: ""
 };
+
+function normalizeWarnings(warnings: string[] | undefined) {
+  if (!warnings?.length) {
+    return [];
+  }
+
+  return warnings
+    .map((warning) => warning.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((warning) => {
+      if (/HTTP ERROR 404|Resource not found/i.test(warning)) {
+        return "HubSpot contact form sync is misconfigured right now. Your contact request was still saved successfully.";
+      }
+
+      if (/HubSpot contact form sync is misconfigured/i.test(warning)) {
+        return "HubSpot contact form sync is misconfigured right now. Your contact request was still saved successfully.";
+      }
+
+      if (/Resend is not configured/i.test(warning)) {
+        return "Confirmation email is not configured right now. Your contact request was still saved successfully.";
+      }
+
+      return warning.length > 240 ? `${warning.slice(0, 237)}...` : warning;
+    });
+}
+
+function getSuccessMessage(payload: LeadApiResponse) {
+  const candidate = payload.message?.trim();
+
+  if (!candidate || /stored successfully/i.test(candidate)) {
+    return "Your message has been sent. We’ll follow up soon.";
+  }
+
+  return candidate;
+}
 
 function ContactPageFallback() {
   return (
@@ -48,6 +90,7 @@ function ContactPageFallback() {
 function ContactPageContent() {
   const searchParams = useSearchParams();
   const intent = searchParams.get("intent");
+  const statusRegionRef = useRef<HTMLDivElement | null>(null);
 
   const initialMessage = useMemo(() => {
     if (intent === "enterprise") {
@@ -66,6 +109,23 @@ function ContactPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
+
+  function revealStatusRegion() {
+    requestAnimationFrame(() => {
+      const element = statusRegionRef.current;
+
+      if (!element) {
+        return;
+      }
+
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+      element.focus();
+    });
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,6 +133,7 @@ function ContactPageContent() {
     setIsSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
+    setWarningMessages([]);
 
     try {
       const response = await fetch("/api/leads", {
@@ -87,19 +148,32 @@ function ContactPageContent() {
         })
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Lead submission failed.");
+      const rawText = await response.text();
+      let payload: LeadApiResponse = {};
+
+      try {
+        payload = rawText ? (JSON.parse(rawText) as LeadApiResponse) : {};
+      } catch {
+        payload = {};
       }
 
-      setSuccessMessage("Your message has been sent. We’ll follow up soon.");
+      if (!response.ok) {
+        throw new Error(payload.message || rawText || "Lead submission failed.");
+      }
+
+      const warnings = normalizeWarnings(payload.warnings);
+
+      setSuccessMessage(getSuccessMessage(payload));
+      setWarningMessages(warnings);
       setForm({ ...initialState, message: initialMessage });
+      revealStatusRegion();
     } catch (caughtError) {
       setErrorMessage(
         caughtError instanceof Error
           ? caughtError.message
           : "Something went wrong while sending your message."
       );
+      revealStatusRegion();
     } finally {
       setIsSubmitting(false);
     }
@@ -108,6 +182,8 @@ function ContactPageContent() {
   function updateField<K extends keyof ContactFormState>(key: K, value: ContactFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
+
+  const hasStatusMessage = Boolean(successMessage || errorMessage || warningMessages.length);
 
   return (
     <main className="relative overflow-x-clip">
@@ -126,7 +202,6 @@ function ContactPageContent() {
               <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">
                 Use the contact form for product questions, pricing conversations, enterprise rollout, or implementation support.
               </p>
-
               <div className="mt-8 grid gap-3">
                 {[
                   "Pricing and plan questions",
@@ -142,7 +217,6 @@ function ContactPageContent() {
                   </div>
                 ))}
               </div>
-
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <Card className="border-zinc-800 bg-zinc-900/80">
                   <CardContent className="p-5">
@@ -153,7 +227,6 @@ function ContactPageContent() {
                     </p>
                   </CardContent>
                 </Card>
-
                 <Card className="border-zinc-800 bg-zinc-900/80">
                   <CardContent className="p-5">
                     <MessageSquareText className="h-5 w-5 text-zinc-300" />
@@ -181,17 +254,42 @@ function ContactPageContent() {
                 <CardTitle className="font-display text-3xl text-zinc-50">Send a message</CardTitle>
               </CardHeader>
               <CardContent className="p-8 pt-0">
-                {successMessage ? (
-                  <div className="mb-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
-                    {successMessage}
-                  </div>
-                ) : null}
+                <div
+                  ref={statusRegionRef}
+                  tabIndex={hasStatusMessage ? -1 : undefined}
+                  className={hasStatusMessage ? "mb-5 space-y-3 outline-none" : "sr-only"}
+                >
+                  {successMessage ? (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300"
+                    >
+                      {successMessage}
+                    </div>
+                  ) : null}
 
-                {errorMessage ? (
-                  <div className="mb-5 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-300">
-                    {errorMessage}
-                  </div>
-                ) : null}
+                  {warningMessages.length > 0 ? (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200"
+                    >
+                      {warningMessages.map((warning) => (
+                        <p key={warning}>{warning}</p>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {errorMessage ? (
+                    <div
+                      role="alert"
+                      className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-300"
+                    >
+                      {errorMessage}
+                    </div>
+                  ) : null}
+                </div>
 
                 <form className="space-y-4" onSubmit={handleSubmit}>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -207,7 +305,6 @@ function ContactPageContent() {
                         required
                       />
                     </div>
-
                     <div className="space-y-2">
                       <label htmlFor="email" className="text-sm font-medium text-zinc-300">
                         Email
@@ -222,7 +319,6 @@ function ContactPageContent() {
                       />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label htmlFor="company" className="text-sm font-medium text-zinc-300">
                       Company
@@ -234,7 +330,6 @@ function ContactPageContent() {
                       placeholder="Optional"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <label htmlFor="message" className="text-sm font-medium text-zinc-300">
                       Message
@@ -247,7 +342,6 @@ function ContactPageContent() {
                       required
                     />
                   </div>
-
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                     <p className="text-xs text-zinc-500">
                       This form posts directly to <code>/api/leads</code>.
